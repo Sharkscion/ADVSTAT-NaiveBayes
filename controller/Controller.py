@@ -1,6 +1,7 @@
 #from __future__ import division
 import os
 
+from model.FileIO import FileIO
 from model.Word import Word
 from mutual_information.EmailReader import EmailReader
 from mutual_information.FeatureSelector import FeatureSelector
@@ -33,19 +34,23 @@ class Controller:
                 else:
                     self.legitEmails.append(content)
 
-        for word in self.distinctWords:
-            self.distinctWordObjectList.append(Word(word,0))
-
         print("Finish getting distinct words..................................")
+
+    def saveWords(self):
+        FileIO().writeWords(self.distinctWords)
+
+    def loadWords(self):
+        self.distinctWords = FileIO().readWords()
+        self.computeWordFrequencies()
 
     def selectFeatures(self):
         print("Extracting features/ feature selections..................................")
         fs = FeatureSelector(self.distinctWordObjectList, self.spamEmails, self.legitEmails)
-        return fs.getWords()
-
+        self.distinctWords = fs.getWords()
 
     def computeWordFrequencies(self):
         print("Computing word frequencies..................................")
+        self.distinctWordObjectList = [Word(word, 0) for word in self.distinctWords]
         for word in self.distinctWordObjectList:
             self.computePresentSpamCount(word)
             self.computeNotPresentSpamCount(word)
@@ -56,7 +61,7 @@ class Controller:
     def computePresentSpamCount(self, distinctWord):
         distinctWord.presentSpamCount = 0
         for spamEmail in self.spamEmails:
-            if distinctWord.content in spamEmail:
+            if distinctWord.content in spamEmail.split():
                 distinctWord.presentSpamCount += 1
 
     def computeNotPresentSpamCount(self, distinctWord):
@@ -66,7 +71,7 @@ class Controller:
     def computePresentLegitCount(self, distinctWord):
         distinctWord.presentLegitCount = 0
         for legitEmail in self.legitEmails:
-            if distinctWord.content in legitEmail:
+            if distinctWord.content in legitEmail.split():
                 distinctWord.presentLegitCount += 1
 
     def computeNotPresentLegitCount(self, distinctWord):
@@ -75,8 +80,6 @@ class Controller:
 
     def computeNaiveBayes(self, emailContent, relevantWords):
         print("Calculating Naive Bayes..................................")
-
-        relevantWords = relevantWords[:500]
         probWord_isSpam = 1.0
         probWord_isLegit = 1.0
 

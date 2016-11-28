@@ -16,12 +16,7 @@ class FeatureSelector:
 
         self.distinctWords.sort(key=lambda x: x.mutualInfo, reverse=True)
 
-        for i in range(10):
-            print(self.distinctWords[i].content, self.distinctWords[i].mutualInfo)
-
-        return self.distinctWords
-
-
+        return [word.content for word in self.distinctWords][:500]
 
     def getMutualInfo(self, distinctWord):
         mutualInfo = 0
@@ -30,14 +25,14 @@ class FeatureSelector:
 
         totalEmails = len(self.spamEmails) + len(self.legitEmails)
         notPresentCount = totalEmails - presentCount
-
+        '''
         print('WORD:', distinctWord)
         print('PS:' , distinctWord.presentSpamCount)
         print('NPS:', distinctWord.notPresentSpamCount)
         print('SE:', len(self.spamEmails))
         print('NP:', notPresentCount)
         print('TE:', totalEmails)
-
+        '''
         try:
             # P(x=0,c=spam)
             mutualInfo = (distinctWord.notPresentSpamCount / len(self.spamEmails)) * \
