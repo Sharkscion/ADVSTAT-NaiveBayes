@@ -1,6 +1,8 @@
 #from __future__ import division
 import os
 
+import nltk
+
 from model.FileIO import FileIO
 from model.PartFolder import Part
 from model.Word import Word
@@ -29,18 +31,18 @@ class Controller:
             for filename in os.listdir(partPath):
                 content = EmailReader(partPath + '\\' + filename).read()
 
-
+                tokenizedEmail = nltk.word_tokenize(content)
                 if i != testingIndex:
-                    for word in content.split():
+                    for word in tokenizedEmail:
                         if word not in self.distinctWords:
                             self.distinctWords.append(word)
 
                 if filename.startswith(self.SPAM):
-                    self.spamEmails.append(content)
-                    partFolder.addSpamEmail(content)
+                    self.spamEmails.append(tokenizedEmail)
+                    partFolder.addSpamEmail(tokenizedEmail)
                 else:
-                    self.legitEmails.append(content)
-                    partFolder.addLegitEmail(content)
+                    self.legitEmails.append(tokenizedEmail)
+                    partFolder.addLegitEmail(tokenizedEmail)
 
             self.partFolderCollection.append(partFolder)
 

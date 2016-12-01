@@ -8,7 +8,7 @@ controller = Controller()
 controller.readEmails('spam emails\\bare\\part',testingIndex)
 #controller.collectDistinctWords(testingIndex) #argument: testing index folder ([i+1]th folder); collect all distinct words in the training data excluding the ith folder
 controller.selectFeatures()
-controller.computeWordFrequencies()
+#controller.computeWordFrequencies()
 
 threshold_lambda = 1
 threshold = threshold_lambda/ (1+threshold_lambda)

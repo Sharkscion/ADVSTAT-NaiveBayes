@@ -35,7 +35,7 @@ class FeatureSelector:
     def computePresentSpamCount(self, distinctWord):
         distinctWord.presentSpamCount = 0
         for spamEmail in self.spamEmails:
-            if distinctWord.content in spamEmail.split():
+            if distinctWord.content in spamEmail:
                 distinctWord.presentSpamCount += 1
 
 
@@ -46,7 +46,7 @@ class FeatureSelector:
     def computePresentLegitCount(self, distinctWord):
         distinctWord.presentLegitCount = 0
         for legitEmail in self.legitEmails:
-            if distinctWord.content in legitEmail.split():
+            if distinctWord.content in legitEmail:
                 distinctWord.presentLegitCount += 1
 
     def computeNotPresentLegitCount(self, distinctWord):
