@@ -9,14 +9,48 @@ class FeatureSelector:
         self.spamEmails = spamEmails
         self.legitEmails = legitEmails
 
-    def getWords(self):
+    def getRelevantWords(self):
        # words = []
+
+
+        print("Getting 500 relevant words (Mutual Information)......................")
+
+       # self.computeWordFrequencies()
+        i = 0
         for distinctWord in self.distinctWords:
+            print("distinct word [", i, "] : ", distinctWord.content)
+            self.computePresentSpamCount(distinctWord)
+            self.computeNotPresentSpamCount(distinctWord)
+            self.computePresentLegitCount(distinctWord)
+            self.computeNotPresentLegitCount(distinctWord)
             distinctWord.mutualInfo = self.getMutualInfo(distinctWord)
+            i+=1
 
         self.distinctWords.sort(key=lambda x: x.mutualInfo, reverse=True)
+        print("Finish getting 500 relevant words (Mutual Information)......................")
 
         return [word.content for word in self.distinctWords][:500]
+
+
+    def computePresentSpamCount(self, distinctWord):
+        distinctWord.presentSpamCount = 0
+        for spamEmail in self.spamEmails:
+            if distinctWord.content in spamEmail.split():
+                distinctWord.presentSpamCount += 1
+
+
+    def computeNotPresentSpamCount(self, distinctWord):
+        distinctWord.notPresentSpamCount = len(self.spamEmails) - distinctWord.presentSpamCount
+
+
+    def computePresentLegitCount(self, distinctWord):
+        distinctWord.presentLegitCount = 0
+        for legitEmail in self.legitEmails:
+            if distinctWord.content in legitEmail.split():
+                distinctWord.presentLegitCount += 1
+
+    def computeNotPresentLegitCount(self, distinctWord):
+        distinctWord.notPresentLegitCount = len(self.legitEmails) - distinctWord.presentLegitCount
 
     def getMutualInfo(self, distinctWord):
         mutualInfo = 0
