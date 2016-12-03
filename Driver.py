@@ -2,56 +2,71 @@ import os
 from controller.Controller import Controller
 from mutual_information.EmailReader import EmailReader
 
-
-testingIndex = 1
 controller = Controller()
-controller.readEmails('spam emails\\bare\\part',testingIndex)
-#controller.collectDistinctWords(testingIndex) #argument: testing index folder ([i+1]th folder); collect all distinct words in the training data excluding the ith folder
-controller.selectFeatures()
-#controller.computeWordFrequencies()
+controller.loadEmails('spam emails\\bare\\part')
+
 
 threshold_lambda = 1
-threshold = threshold_lambda/ (1+threshold_lambda)
-testingEmailContent = []
-s_s = 0 #spam email categorized as spam
-s_l = 0 #spam email categorized as legit
-l_s = 0 #legit email categorized as spam
+threshold = threshold_lambda /(1+threshold_lambda)
 
-for email in controller.partFolderCollection[testingIndex].spamEmail:
-    for word in email.split():
-        testingEmailContent.append(word)
-    result = controller.computeNaiveBayes(testingEmailContent)
+sPrecision = 0
+sRecall = 0
+wAcc_b = 0
+wErr_b = 0
+wAcc = 0
+wErr = 0
+TCR = 0
 
-    if result > threshold: #isSpam
-        s_s+=1
-    else: #isLegit
-        s_l+=1
+for i in range(10):
+    testingIndex = i
+    controller.preparingTrainingSet(testingIndex)
+    controller.selectFeatures()
 
-for email in controller.partFolderCollection[testingIndex].legitEmail:
-    for word in email.split():
-        testingEmailContent.append(word)
-    result = controller.computeNaiveBayes(testingEmailContent)
+    # print("Mutual Info top 10.....")
+    # for i in range(10):
+    #     print(controller.trainingDistinctWordObjectList[i].content, " MI: ", controller.trainingDistinctWordObjectList[i].mutualInfo, controller.trainingDistinctWordObjectList[i].presentSpamCount, controller.trainingDistinctWordObjectList[i].notPresentSpamCount,controller.trainingDistinctWordObjectList[i].presentLegitCount, controller.trainingDistinctWordObjectList[i].notPresentLegitCount)
 
-    if result > threshold: #isSpam
-        l_s+=1
+    s_s = 0 #spam email categorized as spam
+    s_l = 0 #spam email categorized as legit
+    l_s = 0 #legit email categorized as spam
+    l_l = 0 #legit email categorized as legit
 
-print("Spam Precision: ", s_s/(s_s+l_s))
-print("Spam Recall: ",s_s/(s_s+s_l))
+    print("Classifying testing data...[", testingIndex,"]")
+
+    spamSize = len(controller.folderCollection[testingIndex].spamEmail)
+    legitSize = len(controller.folderCollection[testingIndex].legitEmail)
+    print("testing size:",  spamSize + legitSize)
+
+    for email in controller.folderCollection[testingIndex].spamEmail:
+        result = controller.computeNaiveBayes(email)
+        if result > threshold: #isSpam
+            s_s += 1
+        else: #isLegit
+            s_l += 1
+
+    for email in controller.folderCollection[testingIndex].legitEmail:
+        result = controller.computeNaiveBayes(email)
+        if result > threshold: #isSpam
+            l_s += 1
+        else:
+            l_l += 1
+
+    sPrecision += s_s / (s_s + l_s)
+    sRecall += s_s / (s_s + s_l)
+    wAcc += (threshold_lambda * l_l + s_s)/ (threshold_lambda * legitSize + spamSize)
+    wErr += (threshold_lambda * l_s + s_l)/ (threshold_lambda * legitSize + spamSize)
+    wAcc_b += (threshold_lambda * legitSize)/(threshold_lambda * legitSize + spamSize)
+    wErr_b += spamSize / (threshold_lambda * legitSize + spamSize)
+    TCR += wErr_b / wErr
 
 
+print("AVG Spam Precision: ", sPrecision/10)
+print("AVG Spam Precision(1-E): ", 1-wErr/10)
+print("AVG Spam Recall: ", sRecall/10)
+print("AVG wAcc: ", wAcc/10)
+print("AVG wErr: ", wErr/10)
+print("AVG wAcc_b: ", wAcc_b/10)
+print("AVG wErr_b: ", wErr_b/10)
+print("AVG TCR: ", TCR/10)
 
 
-
-'''
-partPath = 'C:\\Users\\sharkscion\\Documents\\DLSU Computer Science\\ADVSTAT\\spam emails\\spam emails\\lemm_stop\\part1\\3-1msg3.txt'
-content = EmailReader(partPath).read()
-emailContent = []
-for word in content.split():
-    emailContent.append(word)
-
-result = controller.computeNaiveBayes(emailContent,controller.selectFeatures())
-
-
-
-
-'''

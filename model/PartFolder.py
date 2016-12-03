@@ -1,6 +1,5 @@
-class Part:
-    def __init__(self, filename):
-        self.filename = filename
+class PartFolder:
+    def __init__(self):
         self.spamEmail = []
         self.legitEmail = []
 
