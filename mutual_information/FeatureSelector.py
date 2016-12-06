@@ -1,5 +1,5 @@
 import math
-
+import operator
 from model.Word import Word
 
 
@@ -8,12 +8,16 @@ class FeatureSelector:
         self.distinctWords = distinctWords
 
     def getRelevantWords(self):
-        for distinctWord in self.distinctWords:
-            distinctWord.mutualInfo = self.getMutualInfo(distinctWord)
+        for k in self.distinctWords:
+            self.distinctWords[k].mutualInfo = self.getMutualInfo(self.distinctWords[k])
 
-        self.distinctWords.sort(key=lambda x: x.mutualInfo, reverse=True)
+        self.distinctWords = sorted(self.distinctWords.items(), key=lambda x:x[1].mutualInfo, reverse = True)[:50]
+        self.distinctWords = {x[0]: x[1] for x in self.distinctWords}
+        # print("after convert back to dictionary..........................")
+        # for k in self.distinctWords:
+        #     print(self.distinctWords.get(k).content , ": ",self.distinctWords[k].mutualInfo)
 
-        return self.distinctWords[:50]
+        return self.distinctWords
 
 
     def getMutualInfo(self, distinctWord):
