@@ -55,7 +55,7 @@ class Controller:
         print("Legit: ", len(self.trainingLegitEmails))
 
         for email in self.trainingLegitEmails:
-            tokenizedEmail = set(nltk.word_tokenize(email))
+            tokenizedEmail = set(email.split())
             for token in tokenizedEmail:
                 if token in self.trainingDistinctWords:
                     word = self.trainingDistinctWords.get(token)
@@ -70,7 +70,7 @@ class Controller:
                     self.trainingDistinctWords[token] = word
 
         for email in self.trainingSpamEmails:
-            tokenizedEmail = set(nltk.word_tokenize(email))
+            tokenizedEmail = set(email.split())
             for token in tokenizedEmail:
                 if token in self.trainingDistinctWords:
                     word = self.trainingDistinctWords.get(token)
@@ -127,7 +127,7 @@ class Controller:
     def computeNaiveBayes(self, emailContent):
         probWord_isPresentSpam = 1.0
         probWord_isPresentLegit = 1.0
-        emailContent = nltk.word_tokenize(emailContent)
+        #emailContent = nltk.word_tokenize(emailContent)
         probIsSpam = len(self.trainingSpamEmails) / (len(self.trainingSpamEmails) + len(self.trainingLegitEmails))
         probIsLegit = len(self.trainingLegitEmails) / (len(self.trainingSpamEmails) + len(self.trainingLegitEmails))
 

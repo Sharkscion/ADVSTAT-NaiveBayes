@@ -38,14 +38,14 @@ for i in range(10):
     print("testing size:",  spamSize + legitSize)
 
     for email in controller.folderCollection[testingIndex].spamEmail:
-        result = controller.computeNaiveBayes(email)
+        result = controller.computeNaiveBayes(email.split())
         if result > threshold: #isSpam
             s_s += 1
         else: #isLegit
             s_l += 1
 
     for email in controller.folderCollection[testingIndex].legitEmail:
-        result = controller.computeNaiveBayes(email)
+        result = controller.computeNaiveBayes(email.split())
         if result > threshold: #isSpam
             l_s += 1
         else:
