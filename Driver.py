@@ -38,21 +38,21 @@ for i in range(10):
     print("testing size:",  spamSize + legitSize)
 
     for email in controller.folderCollection[testingIndex].spamEmail:
-        result = controller.computeNaiveBayes(email.split())
+        result = controller.computeNaiveBayes(email)
         if result > threshold: #isSpam
             s_s += 1
         else: #isLegit
             s_l += 1
 
     for email in controller.folderCollection[testingIndex].legitEmail:
-        result = controller.computeNaiveBayes(email.split())
+        result = controller.computeNaiveBayes(email)
         if result > threshold: #isSpam
             l_s += 1
         else:
             l_l += 1
 
     sPrecision += s_s / (s_s + l_s)
-    sRecall += s_s / (s_s + s_l)
+    sRecall += s_s / spamSize
     wAcc += (threshold_lambda * l_l + s_s)/ (threshold_lambda * legitSize + spamSize)
     wErr += (threshold_lambda * l_s + s_l)/ (threshold_lambda * legitSize + spamSize)
     wAcc_b += (threshold_lambda * legitSize)/(threshold_lambda * legitSize + spamSize)

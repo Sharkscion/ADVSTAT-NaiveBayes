@@ -1,5 +1,7 @@
 #from __future__ import division
 import os
+
+import math
 import nltk
 from model.PartFolder import PartFolder
 from model.Word import Word
@@ -17,6 +19,9 @@ class Controller:
         self.trainingLegitEmails = []
         #self.trainingDistinctWordObjectList = []
         self.folderCollection = []
+
+        self.nWordsSpam = 0
+        self.nWordsLegit = 0
 
     def loadEmails(self, path):
         print("Loading emails...")
@@ -39,6 +44,8 @@ class Controller:
         self.trainingSpamEmails = []
         self.trainingLegitEmails = []
         self.trainingDistinctWords = {}
+        self.nWordsSpam = 0
+        self.nWordsLegit = 0
         #self.trainingDistinctWordObjectList = []
 
         ctrSpam = 0
@@ -55,7 +62,9 @@ class Controller:
         print("Legit: ", len(self.trainingLegitEmails))
 
         for email in self.trainingLegitEmails:
-            tokenizedEmail = set(email.split())
+            email = email.split()
+            self.nWordsLegit += len(email)
+            tokenizedEmail = set(email)
             for token in tokenizedEmail:
                 if token in self.trainingDistinctWords:
                     word = self.trainingDistinctWords.get(token)
@@ -70,7 +79,9 @@ class Controller:
                     self.trainingDistinctWords[token] = word
 
         for email in self.trainingSpamEmails:
-            tokenizedEmail = set(email.split())
+            email = email.split()
+            self.nWordsSpam += len(email)
+            tokenizedEmail = set(email)
             for token in tokenizedEmail:
                 if token in self.trainingDistinctWords:
                     word = self.trainingDistinctWords.get(token)
@@ -128,6 +139,9 @@ class Controller:
         probWord_isPresentSpam = 1.0
         probWord_isPresentLegit = 1.0
         #emailContent = nltk.word_tokenize(emailContent)
+        probWord_isPresentSpamLog = 0
+        probWord_isPresentLegitLog = 0
+        emailContent = emailContent.split()
         probIsSpam = len(self.trainingSpamEmails) / (len(self.trainingSpamEmails) + len(self.trainingLegitEmails))
         probIsLegit = len(self.trainingLegitEmails) / (len(self.trainingSpamEmails) + len(self.trainingLegitEmails))
 
@@ -140,30 +154,25 @@ class Controller:
 
         # proability relevant words are in the category
         for k in self.trainingDistinctWords:
-            word =  self.trainingDistinctWords[k]
+            word = self.trainingDistinctWords[k]
             if word.content in emailContent:
-                probWord_isPresentSpam *= (word.presentSpamCount/len(self.trainingSpamEmails))
-                probWord_isPresentLegit *= (word.presentLegitCount/len(self.trainingLegitEmails))
+                if word.presentSpamCount != 0:
+                    probWord_isPresentSpam *= (word.presentSpamCount/self.nWordsSpam)
 
+                if word.presentLegitCount != 0:
+                    probWord_isPresentLegit *= (word.presentLegitCount/self.nWordsLegit)
 
+        # for k in self.trainingDistinctWords:
+        #     word = self.trainingDistinctWords[k]
+        #     if word.content in emailContent:
+        #         if word.presentSpamCount != 0:
+        #             probWord_isPresentSpamLog += math.log10((word.presentSpamCount / len(self.trainingSpamEmails)))
+        #             probWord_isPresentSpam *= (word.presentSpamCount / len(self.trainingSpamEmails))
+        #
+        #         if word.presentLegitCount != 0:
+        #             probWord_isPresentLegitLog += math.log10((word.presentLegitCount/len(self.trainingLegitEmails)))
+        #             probWord_isPresentLegit *= (word.presentLegitCount/len(self.trainingLegitEmails))
+        #
+        # rightValue = (math.log10(probIsSpam) + probWord_isPresentSpamLog) - math.log10(probIsSpam * probWord_isPresentSpam + probIsLegit * probWord_isPresentLegit)
+        # #return 10 ** rightValue
         return (probIsSpam * probWord_isPresentSpam) / (probIsSpam*probWord_isPresentSpam + probIsLegit*probWord_isPresentLegit)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
