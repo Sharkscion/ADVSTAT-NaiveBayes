@@ -6,7 +6,7 @@ controller = Controller()
 controller.loadEmails('spam emails\\bare\\part')
 
 
-threshold_lambda = 1
+threshold_lambda = 999
 threshold = threshold_lambda /(1+threshold_lambda)
 
 sPrecision = 0
@@ -23,8 +23,10 @@ for i in range(10):
     controller.selectFeatures()
 
     # print("Mutual Info top 10.....")
-    # for i in range(10):
-    #     print(controller.trainingDistinctWordObjectList[i].content, " MI: ", controller.trainingDistinctWordObjectList[i].mutualInfo, controller.trainingDistinctWordObjectList[i].presentSpamCount, controller.trainingDistinctWordObjectList[i].notPresentSpamCount,controller.trainingDistinctWordObjectList[i].presentLegitCount, controller.trainingDistinctWordObjectList[i].notPresentLegitCount)
+    # for k in controller.trainingDistinctWords:
+    #     word = controller.trainingDistinctWords[k]
+    #     print(word.content, " MI: ", word.mutualInfo, word.presentSpamCount,
+    #           word.notPresentSpamCount, word.presentLegitCount, word.notPresentLegitCount)
 
     s_s = 0 #spam email categorized as spam
     s_l = 0 #spam email categorized as legit
@@ -52,7 +54,7 @@ for i in range(10):
             l_l += 1
 
     sPrecision += s_s / (s_s + l_s)
-    sRecall += s_s / spamSize
+    sRecall += s_s / (s_s+s_l)
     wAcc += (threshold_lambda * l_l + s_s)/ (threshold_lambda * legitSize + spamSize)
     wErr += (threshold_lambda * l_s + s_l)/ (threshold_lambda * legitSize + spamSize)
     wAcc_b += (threshold_lambda * legitSize)/(threshold_lambda * legitSize + spamSize)
@@ -68,5 +70,14 @@ print("AVG wErr: ", wErr/10)
 print("AVG wAcc_b: ", wAcc_b/10)
 print("AVG wErr_b: ", wErr_b/10)
 print("AVG TCR: ", TCR/10)
+
+# print("AVG Spam Precision: ", sPrecision)
+# print("AVG Spam Precision(1-E): ", 1-wErr)
+# print("AVG Spam Recall: ", sRecall)
+# print("AVG wAcc: ", wAcc)
+# print("AVG wErr: ", wErr)
+# print("AVG wAcc_b: ", wAcc_b)
+# print("AVG wErr_b: ", wErr_b)
+# print("AVG TCR: ", TCR)
 
 

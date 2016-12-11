@@ -9,16 +9,20 @@ from mutual_information.EmailReader import EmailReader
 from mutual_information.FeatureSelector import FeatureSelector
 
 
+
+
 class Controller:
     SPAM = 'sp'
     LEGITIMATE = "lg"
+    NO_ATTRIBUTE = 50
 
     def __init__(self):
+
         self.trainingDistinctWords = {}
         self.trainingSpamEmails = []
         self.trainingLegitEmails = []
-        #self.trainingDistinctWordObjectList = []
         self.folderCollection = []
+
 
         self.nWordsSpam = 0
         self.nWordsLegit = 0
@@ -44,13 +48,6 @@ class Controller:
         self.trainingSpamEmails = []
         self.trainingLegitEmails = []
         self.trainingDistinctWords = {}
-        self.nWordsSpam = 0
-        self.nWordsLegit = 0
-        #self.trainingDistinctWordObjectList = []
-
-        ctrSpam = 0
-        ctrLegit = 0
-        #dict = {}
 
         for i in range(len(self.folderCollection)):
             if i != testingIndex:
@@ -63,8 +60,9 @@ class Controller:
 
         for email in self.trainingLegitEmails:
             email = email.split()
-            self.nWordsLegit += len(email)
             tokenizedEmail = set(email)
+
+            #count term frequencies
             for token in tokenizedEmail:
                 if token in self.trainingDistinctWords:
                     word = self.trainingDistinctWords.get(token)
@@ -78,9 +76,10 @@ class Controller:
                     word.notPresentSpamCount = len(self.trainingSpamEmails)
                     self.trainingDistinctWords[token] = word
 
+
+
         for email in self.trainingSpamEmails:
             email = email.split()
-            self.nWordsSpam += len(email)
             tokenizedEmail = set(email)
             for token in tokenizedEmail:
                 if token in self.trainingDistinctWords:
@@ -96,13 +95,30 @@ class Controller:
                     self.trainingDistinctWords[token] = word
 
 
+
         print("Training distinct words: ", len(self.trainingDistinctWords))
 
     def selectFeatures(self):
         print("Extracting features/ feature selections..................................")
+        self.nWordsLegit = 0
+        self.nWordsSpam = 0
+
         fs = FeatureSelector(self.trainingDistinctWords)
         self.trainingDistinctWords = fs.getRelevantWords()
 
+        for key in self.trainingDistinctWords:
+            word = self.trainingDistinctWords[key]
+
+            for email in self.trainingSpamEmails:
+                if word.content in email.split():
+                    word.spamDocumentCount += 1 #count document frequencies
+
+            for email in self.trainingLegitEmails:
+                if word.content in email.split():
+                    word.legitDocumentCount += 1 #count document frequencies
+
+            self.nWordsSpam += word.presentSpamCount
+            self.nWordsLegit += word.presentLegitCount
 
 
     def computeWordObservations(self):
@@ -136,31 +152,64 @@ class Controller:
 
 
     def computeNaiveBayes(self, emailContent):
+        #Naive Bayes: Multinomial NB, TF attributes
+
+        emailContent = emailContent.split()
+        dict_testingData = {} # dictionary of distinct words in testing data
+        total_trainingEmails = len(self.trainingSpamEmails) + len(self.trainingLegitEmails)
+        probIsSpam = len(self.trainingSpamEmails) / total_trainingEmails
+        probIsLegit = len(self.trainingLegitEmails) / total_trainingEmails
         probWord_isPresentSpam = 1.0
         probWord_isPresentLegit = 1.0
-        #emailContent = nltk.word_tokenize(emailContent)
-        probWord_isPresentSpamLog = 0
-        probWord_isPresentLegitLog = 0
-        emailContent = emailContent.split()
-        probIsSpam = len(self.trainingSpamEmails) / (len(self.trainingSpamEmails) + len(self.trainingLegitEmails))
-        probIsLegit = len(self.trainingLegitEmails) / (len(self.trainingSpamEmails) + len(self.trainingLegitEmails))
+        probWord_isPresentSpamLog = 0.0
+        probWord_isPresentLegitLog = 0.0
+
+
+        #determine whther term appeared in document
+
+        for key in self.trainingDistinctWords:
+            if key in emailContent:
+                dict_testingData[key] = 1
+            else :
+                dict_testingData[key] = 0
+
+        for key in self.trainingDistinctWords:
+            # if key in self.trainingDistinctWords:
+            word = self.trainingDistinctWords[key]
+            power = dict_testingData[key]
+
+            prob_t_s = (1 + word.spamDocumentCount) / (2 + len(self.trainingSpamEmails))
+            prob_t_l = (1 + word.legitDocumentCount) / (2 + len(self.trainingLegitEmails))
+
+            probWord_isPresentSpam*= (math.pow(prob_t_s, power) * math.pow(1-prob_t_s, 1-power))
+            probWord_isPresentLegit*= (math.pow(prob_t_l, power) * math.pow(1-prob_t_l, 1-power))
+
+        return (probIsSpam * probWord_isPresentSpam) / (probIsSpam * probWord_isPresentSpam + probIsLegit * probWord_isPresentLegit)
+
+        # #emailContent = nltk.word_tokenize(emailContent)
+
+
 
         # proability relevant words are in the category
         # for word in emailContent:
         #     if word in self.trainingDistinctWords:
         #         relWord = self.trainingDistinctWords[word]
-        #         probWord_isPresentSpam *= (relWord.presentSpamCount / len(self.trainingSpamEmails))
-        #         probWord_isPresentLegit *= (relWord.presentLegitCount / len(self.trainingLegitEmails))
+        #         if relWord.presentSpamCount != 0:
+        #             probWord_isPresentSpam *= (relWord.presentSpamCount / len(self.trainingSpamEmails))
+        #
+        #         if relWord.presentLegitCount != 0:
+        #             probWord_isPresentLegit *= (relWord.presentLegitCount / len(self.trainingLegitEmails))
+
 
         # proability relevant words are in the category
-        for k in self.trainingDistinctWords:
-            word = self.trainingDistinctWords[k]
-            if word.content in emailContent:
-                if word.presentSpamCount != 0:
-                    probWord_isPresentSpam *= (word.presentSpamCount/self.nWordsSpam)
-
-                if word.presentLegitCount != 0:
-                    probWord_isPresentLegit *= (word.presentLegitCount/self.nWordsLegit)
+        # for k in self.trainingDistinctWords:
+        #     word = self.trainingDistinctWords[k]
+        #     if word.content in emailContent:
+        #         if word.presentSpamCount != 0:
+        #             probWord_isPresentSpam *= (word.presentSpamCount/self.nWordsSpam)
+        #
+        #         if word.presentLegitCount != 0:
+        #             probWord_isPresentLegit *= (word.presentLegitCount/self.nWordsLegit)
 
         # for k in self.trainingDistinctWords:
         #     word = self.trainingDistinctWords[k]
@@ -175,4 +224,4 @@ class Controller:
         #
         # rightValue = (math.log10(probIsSpam) + probWord_isPresentSpamLog) - math.log10(probIsSpam * probWord_isPresentSpam + probIsLegit * probWord_isPresentLegit)
         # #return 10 ** rightValue
-        return (probIsSpam * probWord_isPresentSpam) / (probIsSpam*probWord_isPresentSpam + probIsLegit*probWord_isPresentLegit)
+
