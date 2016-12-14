@@ -11,15 +11,9 @@ class FeatureSelector:
         for k in self.distinctWords:
             self.distinctWords[k].mutualInfo = self.getMutualInfo(self.distinctWords[k])
 
-        self.distinctWords = sorted(self.distinctWords.items(), key=lambda x:x[1].mutualInfo, reverse = True)[:200]
-
-        # for k in self.distinctWords:
-        #     print(k[0] , ": ",k[1].mutualInfo)
-        self.distinctWords = {x[0]: x[1] for x in self.distinctWords}
-        print("after convert back to dictionary..........................")
-
-
+        self.distinctWords = sorted(self.distinctWords.items(), key=lambda x:x[1].mutualInfo, reverse = True)
         return self.distinctWords
+
 
 
     def getMutualInfo(self, distinctWord):
