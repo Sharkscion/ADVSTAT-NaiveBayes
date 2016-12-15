@@ -18,76 +18,10 @@ class Controller:
     def __init__(self):
         self.trainingDistinctWords = {}
 
-    def loadEmails(self, path):
-        print("Loading emails...")
-
-        folderCollection = []
-
-        for i in range(1,11):
-
-            partPath = path + str(i)
-            partFolder = PartFolder()
-
-            for filename in os.listdir(partPath):
-                content = EmailReader(partPath + '\\' + filename).read()
-                if filename.startswith(self.SPAM):
-                    partFolder.spamEmail.append(content)
-                else:
-                    partFolder.legitEmail.append(content)
-
-            folderCollection.append(partFolder)
-
-        for i in range(10): #testingIndex
-            for j in range(10):
-                if j != i:
-                    folderCollection[i].trainingSpamEmail += folderCollection[j].spamEmail
-                    folderCollection[i].trainingLegitEmail += folderCollection[j].legitEmail
 
 
-        for i in range(10):
-            folderCollection[i].relevantWords = self.praparingTrainingSet(folderCollection[i])
 
 
-    def praparingTrainingSet(self, testingFolder):
-
-        trainingDistinctWords = {}
-
-        for email in testingFolder.trainingLegitEmails:
-            email = email.split()
-            tokenizedEmail = set(email)
-
-            # count term frequencies
-            for token in tokenizedEmail:
-                if token in trainingDistinctWords:
-                    word = trainingDistinctWords.get(token)
-                    word.presentLegitCount += 1
-                    word.notPresentLegitCount -= 1
-                else:
-                    word = Word(token)
-                    word.presentLegitCount = 1
-                    word.notPresentLegitCount = len(testingFolder.trainingLegitEmails) - 1
-                    word.presentSpamCount = 0
-                    word.notPresentSpamCount = len(testingFolder.trainingSpamEmails)
-                    trainingDistinctWords[token] = word
-
-        for email in testingFolder.trainingSpamEmails:
-            email = email.split()
-            tokenizedEmail = set(email)
-            for token in tokenizedEmail:
-                if token in trainingDistinctWords:
-                    word = trainingDistinctWords.get(token)
-                    word.presentSpamCount += 1
-                    word.notPresentSpamCount -= 1
-                else:
-                    word = Word(token)
-                    word.presentSpamCount = 1
-                    word.notPresentSpamCount = len(testingFolder.trainingSpamEmails) - 1
-                    word.presentLegitCount = 0
-                    word.notPresentLegitCount = len(testingFolder.trainingLegitEmails)
-                    trainingDistinctWords[token] = word
-
-        fs = FeatureSelector(trainingDistinctWords)
-        return fs.getRelevantWords()
 
     #
     # def preparingTrainingSet(self, testingIndex):
@@ -149,52 +83,10 @@ class Controller:
 
 
 
-    def selectNFeatures(self, nFeatures, testingFolder):
-        print("Extracting features/ feature selections...")
-
-        self.trainingDistinctWords = {x[0]: x[1] for x in testingFolder.relevantWords[:nFeatures]}
-
-        for key in self.trainingDistinctWords:
-            word = self.trainingDistinctWords[key]
-
-            for email in testingFolder.trainingSpamEmails:
-                if word.content in email.split():
-                    word.spamDocumentCount += 1 #count document frequencies
-
-            for email in testingFolder.trainingLegitEmails:
-                if word.content in email.split():
-                    word.legitDocumentCount += 1 #count document frequencies
 
 
-    def computeNaiveBayes(self, testingFolder, emailContent):
-        #Naive Bayes: Multinomial NB, TF attributes
 
-        emailContent = emailContent.split()
-        dict_testingData = {} # dictionary of distinct words in testing data
-        total_trainingEmails = len(testingFolder.trainingSpamEmails) + len(testingFolder.trainingLegitEmails)
-        probIsSpam = len(testingFolder.trainingSpamEmails) / total_trainingEmails
-        probIsLegit = len(testingFolder.trainingLegitEmails) / total_trainingEmails
-        probWord_isPresentSpam = 1.0
-        probWord_isPresentLegit = 1.0
 
-        #determine whther term appeared in document
-        for key in self.trainingDistinctWords:
-            if key in emailContent:
-                dict_testingData[key] = 1
-            else:
-                dict_testingData[key] = 0
-
-        for key in self.trainingDistinctWords:
-            word = self.trainingDistinctWords[key]
-            power = dict_testingData[key]
-
-            prob_t_s = (1 + word.spamDocumentCount) / (2 + len(testingFolder.trainingSpamEmails))
-            prob_t_l = (1 + word.legitDocumentCount) / (2 + len(testingFolder.trainingLegitEmails))
-
-            probWord_isPresentSpam*= (math.pow(prob_t_s, power) * math.pow(1-prob_t_s, 1-power))
-            probWord_isPresentLegit*= (math.pow(prob_t_l, power) * math.pow(1-prob_t_l, 1-power))
-
-        return (probIsSpam * probWord_isPresentSpam) / (probIsSpam * probWord_isPresentSpam + probIsLegit * probWord_isPresentLegit)
 
         # #emailContent = nltk.word_tokenize(emailContent)
 

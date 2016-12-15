@@ -1,17 +1,15 @@
 import os
-from controller.Controller import Controller
-from mutual_information.EmailReader import EmailReader
+import math
+
+from model.Result import Result
+from model.PartFolder import PartFolder
+from model.Word import Word
+from mutual_information.FeatureSelector import FeatureSelector
 
 RECALL = 'recall'
 PRECISION = 'precision'
 
-# BARE = 'bare'
-# LEMM_STOP = 'lemm_stop'
-# LEMM = 'lemm'
-# STOP = 'stop'
-
-FILTERS = ['bare', 'lemm', 'stop', 'lemm_stop']
-
+FILTERS = ['bare', 'stop', 'lemm', 'lemm_stop']
 LAMBDA = 'lambda'
 N_ATTRIBUTES = 'attribute'
 W_ACC = 'w_acc'
@@ -35,32 +33,140 @@ lemm_stop_resultsPR = {}
 lemm_stop_resultsPR[PRECISION] = []
 lemm_stop_resultsPR[RECALL] = []
 
-tableResults = {}
-tableResults[FILTER] = []
-tableResults[LAMBDA] = []
-tableResults[N_ATTRIBUTES] = []
-tableResults[RECALL] = []
-tableResults[PRECISION] = []
-tableResults[W_ACC] = []
-tableResults[BW_ACC] = []
-tableResults[TCR] = []
-
-
+tableResults = []
 filterCollection = {} #bare, stop, lemm, lemm_stop
-controller = Controller()
 
 
-#in progress: under construction
-for i in len(FILTERS):
-    controller.loadEmails('spam emails\\'+FILTERS[i]+'\\part')
+def loadEmails(path):
+    print("Loading emails...:",path)
+
+    folderCollection = []
+
+    #pre-load the emails of each folder per filter configuration
+    for i in range(1, 11):
+        partPath = path + str(i)
+        partFolder = PartFolder()
+
+        for filename in os.listdir(partPath):
+            content = open(partPath + '\\' + filename).read()
+            if filename.startswith('sp'):
+                partFolder.spamEmail.append(content)
+            else:
+                partFolder.legitEmail.append(content)
+
+        folderCollection.append(partFolder)
+
+    #pre-load the training emails classified as spam and legit
+    for i in range(10):  # testingIndex
+        for j in range(10):
+            if j != i:
+                folderCollection[i].trainingSpamEmail += folderCollection[j].spamEmail
+                folderCollection[i].trainingLegitEmail += folderCollection[j].legitEmail
+
+    #pre-load and find the relevant words per testing index
+    for i in range(10):
+        folderCollection[i].relevantWords = praparingTrainingSet(folderCollection[i])
+
+    return folderCollection
+
+def praparingTrainingSet(testingFolder):
+
+    trainingDistinctWords = {}
+
+    for email in testingFolder.trainingLegitEmail:
+        email = email.split()
+        tokenizedEmail = set(email)
+
+        # count term frequencies
+        for token in tokenizedEmail:
+            if token in trainingDistinctWords:
+                word = trainingDistinctWords.get(token)
+                word.presentLegitCount += 1
+                word.notPresentLegitCount -= 1
+            else:
+                word = Word(token)
+                word.presentLegitCount = 1
+                word.notPresentLegitCount = len(testingFolder.trainingLegitEmail) - 1
+                word.presentSpamCount = 0
+                word.notPresentSpamCount = len(testingFolder.trainingSpamEmail)
+                trainingDistinctWords[token] = word
+
+    for email in testingFolder.trainingSpamEmail:
+        email = email.split()
+        tokenizedEmail = set(email)
+        for token in tokenizedEmail:
+            if token in trainingDistinctWords:
+                word = trainingDistinctWords.get(token)
+                word.presentSpamCount += 1
+                word.notPresentSpamCount -= 1
+            else:
+                word = Word(token)
+                word.presentSpamCount = 1
+                word.notPresentSpamCount = len(testingFolder.trainingSpamEmail) - 1
+                word.presentLegitCount = 0
+                word.notPresentLegitCount = len(testingFolder.trainingLegitEmail)
+                trainingDistinctWords[token] = word
+
+    fs = FeatureSelector(trainingDistinctWords)
+    return fs.getRelevantWords()
 
 
+def selectNFeatures(nFeatures, testingFolder):
+    relevantWords = {x[0]: x[1] for x in testingFolder.relevantWords[:nFeatures]}
+
+    for key in relevantWords:
+        word = relevantWords[key]
+
+        for email in testingFolder.trainingSpamEmail:
+            if word.content in email.split():
+                word.spamDocumentCount += 1  # count document frequencies
+
+        for email in testingFolder.trainingLegitEmail:
+            if word.content in email.split():
+                word.legitDocumentCount += 1  # count document frequencies
+
+    return relevantWords
+
+def computeNaiveBayes(testingFolder, emailContent, relevantWords):
+    # Naive Bayes: Multinomial NB, TF attributes
+    emailContent = emailContent.split()
+    dict_testingData = {}  # dictionary of distinct words in testing data
+
+    total_trainingEmails = len(testingFolder.trainingSpamEmail) + len(testingFolder.trainingLegitEmail)
+
+    probIsSpam = len(testingFolder.trainingSpamEmail) / total_trainingEmails
+    probIsLegit = len(testingFolder.trainingLegitEmail) / total_trainingEmails
+
+    probWord_isPresentSpam = 1.0
+    probWord_isPresentLegit = 1.0
+
+    # determine whther term appeared in document
+    for key in relevantWords:
+        if key in emailContent:
+            dict_testingData[key] = 1
+        else:
+            dict_testingData[key] = 0
+
+    for key in relevantWords:
+        word = relevantWords[key]
+        power = dict_testingData[key]
+
+        prob_t_s = (1 + word.spamDocumentCount) / (2 + len(testingFolder.trainingSpamEmail))
+        prob_t_l = (1 + word.legitDocumentCount) / (2 + len(testingFolder.trainingLegitEmail))
+
+        probWord_isPresentSpam *= (math.pow(prob_t_s, power) * math.pow(1 - prob_t_s, 1 - power))
+        probWord_isPresentLegit *= (math.pow(prob_t_l, power) * math.pow(1 - prob_t_l, 1 - power))
+
+    return (probIsSpam * probWord_isPresentSpam) / ( probIsSpam * probWord_isPresentSpam + probIsLegit * probWord_isPresentLegit)
+
+
+#function for constructing the average results table per filter, nAttributes, and threshold configuration
 def runTestTable(filter, threshold, nFeatures):
-    path = 'spam emails\\'+filter+'\\part'
-    controller.loadEmails(path)
 
+    folderCollection = filterCollection[filter]
     threshold_lambda = threshold
     threshold = threshold_lambda /(1+threshold_lambda)
+
 
     sPrecision = 0
     sRecall = 0
@@ -70,41 +176,31 @@ def runTestTable(filter, threshold, nFeatures):
     wErr = 0
     tcr = 0
 
-    for i in range(1):
-        testingIndex = i
-        controller.preparingTrainingSet(testingIndex)
-        controller.selectFeatures(nFeatures)
+    for testingIndex in range(10):
+        relevantWords = selectNFeatures(nFeatures, folderCollection[testingIndex])
 
         s_s = 0 #spam email categorized as spam
         s_l = 0 #spam email categorized as legit
         l_s = 0 #legit email categorized as spam
         l_l = 0 #legit email categorized as legit
 
-        print("Classifying testing data...[", testingIndex,"]")
+        spamSize = len(folderCollection[testingIndex].spamEmail)
+        legitSize = len(folderCollection[testingIndex].legitEmail)
 
-        spamSize = len(controller.folderCollection[testingIndex].spamEmail)
-        legitSize = len(controller.folderCollection[testingIndex].legitEmail)
-        print("testing size:",  spamSize + legitSize)
-
-        for email in controller.folderCollection[testingIndex].spamEmail:
-            result = controller.computeNaiveBayes(email)
+        for email in folderCollection[testingIndex].spamEmail:
+            result = computeNaiveBayes(folderCollection[testingIndex], email, relevantWords)
             if result > threshold: #isSpam
                 s_s += 1
             else: #isLegit
                 s_l += 1
 
-        print("S_S:", s_s)
-        print("S_L:", s_l)
 
-        for email in controller.folderCollection[testingIndex].legitEmail:
-            result = controller.computeNaiveBayes(email)
+        for email in folderCollection[testingIndex].legitEmail:
+            result = computeNaiveBayes(folderCollection[testingIndex], email, relevantWords)
             if result > threshold: #isSpam
                 l_s += 1
             else:
                 l_l += 1
-
-        print("L_S:", l_s)
-        print("L_L:", l_l)
 
         sPrecision += (s_s / (s_s + l_s))
         sRecall += (s_s / (s_s +s_l))
@@ -114,75 +210,51 @@ def runTestTable(filter, threshold, nFeatures):
         wErr_b += spamSize / (threshold_lambda * legitSize + spamSize)
         tcr += spamSize / (threshold_lambda*l_s + s_l)
 
-        # print("S_Precision:", sPrecision)
-        # print("S_Recall:", sRecall)
-        # print("w_acc:", wAcc)
-        # print("w_accB:", wAcc_b)
-        # print("TCR:", tcr)
+
+    table_row = Result()
+    table_row.filter = filter
+    table_row.threshold = threshold_lambda
+    table_row.nFeatures = nFeatures
+    table_row.avg_recall =  (sRecall/10)*100
+    table_row.avg_precision = (sPrecision/10)*100
+    table_row.avg_w_acc = (wAcc/10)*100
+    table_row.avg_bw_acc = (wAcc_b/10)*100
+    table_row.avg_tcr = tcr/10
+    tableResults.append(table_row)
+
+    print("S_Precision:", (sPrecision/10)*100)
+    print("S_Recall:", (sRecall/10)*100)
+    print("w_acc:", (wAcc/10)*100)
+    print("w_accB:", (wAcc_b/10)*100)
+    print("TCR:", tcr/10)
 
 
-    tableResults[FILTER].append(filter)
-    tableResults[LAMBDA].append(threshold_lambda)
-    tableResults[N_ATTRIBUTES].append(nFeatures)
-    tableResults[PRECISION].append((sPrecision/10)*100)#average precision
-    tableResults[RECALL].append((sRecall/10)*100) #average recall
-    tableResults[W_ACC].append((wAcc/10)*100) #average weighted accuracy
-    tableResults[BW_ACC].append((wAcc_b/10)*100) #average baseline weighted accuracy
-    tableResults[TCR].append(tcr/10) #average TCR
+def table_row_generator(index, pd, filter, threshold, nFeatures, avg_recall, avg_precision, avg_accuracy, avg_accuracy_base,
+                        avg_tcr):
+    raw_data = {
+        '#': index,
+        'Filter Configuration': [filter],
+        'Lambda': [threshold],
+        'No. of attrib.': [nFeatures],
+        'Spam Recall': [avg_recall],
+        'Spam Precision': [avg_precision],
+        'Weighted Accuracy': [avg_accuracy],
+        'Baseline W. Acc': [avg_accuracy_base],
+        'TCR': [avg_tcr]
+    }
+    return pd.DataFrame(raw_data, columns=['#', 'Filter Configuration', 'Lambda', 'No. of attrib.', 'Spam Recall',
+                                           'Spam Precision', 'Weighted Accuracy', 'Baseline W. Acc', 'TCR'])
 
 
 
-def runTestPlot(threshold, nFeatures, filterTypes_results):
-    path = 'spam emails\\' + filter + '\\part'
-    controller.loadEmails(path)
-    threshold_lambda = threshold
-    threshold = threshold_lambda /(1+threshold_lambda)
+#in progress: under construction
+for i in range(len(FILTERS)):
+    filterCollection[FILTERS[i]] = loadEmails('spam emails\\'+FILTERS[i]+'\\part')
 
-    for i in range(10):
-        testingIndex = i
-        controller.preparingTrainingSet(testingIndex)
-        controller.selectFeatures(nFeatures)
-
-        s_s = 0 #spam email categorized as spam
-        s_l = 0 #spam email categorized as legit
-        l_s = 0 #legit email categorized as spam
-        l_l = 0 #legit email categorized as legit
-
-        print("Classifying testing data...[", testingIndex,"]")
-
-        spamSize = len(controller.folderCollection[testingIndex].spamEmail)
-        legitSize = len(controller.folderCollection[testingIndex].legitEmail)
-        print("testing size:",  spamSize + legitSize)
-
-        for email in controller.folderCollection[testingIndex].spamEmail:
-            result = controller.computeNaiveBayes(email)
-            if result > threshold: #isSpam
-                s_s += 1
-            else: #isLegit
-                s_l += 1
-
-        for email in controller.folderCollection[testingIndex].legitEmail:
-            result = controller.computeNaiveBayes(email)
-            if result > threshold: #isSpam
-                l_s += 1
-            else:
-                l_l += 1
-
-        filterTypes_results[PRECISION].add(s_s / (s_s + l_s))
-        filterTypes_results[RECALL].add(s_s / (s_s +s_l))
+runTestTable(FILTERS[0], 1, 50)
+runTestTable(FILTERS[1], 1, 50)
 
 
-runTestTable(BARE,1,50)
-# runTestTable(STOP,1,50)
-# runTestTable(LEMM,1,100)
-# runTestTable(LEMM_STOP,1,100)
-#
-# runTestTable(BARE,9,200)
-# runTestTable(STOP,9,200)
-# runTestTable(LEMM,9,100)
-# runTestTable(LEMM_STOP,9,100)
-#
-# runTestTable(BARE,999,200)
-# runTestTable(STOP,999,200)
-# runTestTable(LEMM,999,300)
-# runTestTable(LEMM_STOP,999,300)
+
+
+
